@@ -15,10 +15,10 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.example.pezosergio.databinding.ActivityMainBinding
-import java.util.UUID
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
 
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity() {
 
 
         fun bezierCurve() {
-            if(Global.bezierNodes.size >= 3){
+            if(Global.bezierOrderNodes.size >= 3){
                 Global.bezierCurve.clear()
                 val steps = 1000
 
@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
                 for (i in 0..steps) {
                     t = i / steps.toFloat()
 
-                    var tempPoints = Global.bezierNodes.map { floatArrayOf(it.positionX, it.positionY) }.toMutableList()
+                    var tempPoints = Global.bezierOrderNodes.map { floatArrayOf(it.positionX, it.positionY) }.toMutableList()
 
                     while (tempPoints.size > 1) {
                         val newPoints = mutableListOf<FloatArray>()
@@ -111,8 +111,7 @@ class MainActivity : AppCompatActivity() {
 
                     val node = Node(numNodes, name, x, y)
                     Global.bezierNodes.add(node)
-
-                    binding.txt.text = "(x: $x, y: $y) and ${Global.bezierNodes[Global.bezierNodes.size - 1].name}"
+                    Global.bezierOrderNodes.add(node)
 
                     if (Global.bezierNodes.size >= 3) mCanvas.drawBitmap(nodesBitmap!!, 0f, 0f, null)
                     mCanvas.drawCircle(x, y, 5F, mPaint)
@@ -128,6 +127,72 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        binding.btnGenerateRoute.setOnClickListener(object : View.OnClickListener{
+            @SuppressLint("SuspiciousIndentation")
+            override fun onClick(v: View?) {
+                var numCities = Global.numNodes
+                var sizePopulation:Float = binding.txttampoblacion.getText().toString().toFloat()
+                var mutationProbability:Float = binding.txtprobabilidadMutacion.getText().toString().toFloat()
+                var numGenerations:Float = binding.txtnumgereraciones.getText().toString().toFloat()
+                var coordinates = Global.bezierNodes.flatMap { listOf(it.positionX, it.positionY) }
+
+
+                if ( numCities >= 4){
+                    val requestData = RequestData(
+                        listOf(numCities,sizePopulation,mutationProbability,numGenerations),
+                        coordinates
+                    )
+
+                    val call = RetroFitTraveler.aTravelerAPI.predict(requestData)
+                    call.enqueue(object : Callback<ResponseData> {
+                        override fun onResponse(
+                            call: Call<ResponseData>,
+                            response: Response<ResponseData>
+                        ) {
+                            if(response.isSuccessful){
+                                val orderNodes: ArrayList<Node> = ArrayList()
+                                val responseData = response.body()
+                                responseData?.let{
+                                    var mensaje: String = ""
+                                    for(i in 0..numCities){
+                                        mensaje = mensaje +" - "+ it.prediction[i].toString()
+
+                                        if(i < numCities) orderNodes.add(Global.bezierNodes[it.prediction[i]])
+                                    }
+                                    Global.bezierOrderNodes = orderNodes
+                                    mensaje = "La mejor ruta es: $mensaje"
+                                    binding.txtResult.text = mensaje
+                                    mCanvas.drawBitmap(originalBitmap, 0f, 0f, null)
+                                    Global.bezierNodes.forEach {node ->
+                                        mCanvas.drawCircle(node.positionX, node.positionY, 5F, mPaint)
+                                        mCanvas.drawText(node.idNode.toString(), node.positionX + numLayout, node.positionY + numLayout, mPaint)
+                                    }
+                                    bezierCurve()
+                                    binding.myImg.invalidate()
+
+                                }
+                            }else{
+                                val myToast = Toast.makeText(applicationContext,"Por favor, ingrese nuevos nodos, toque en Reset",Toast.LENGTH_LONG)
+                                myToast.show()
+                            }
+                        }
+                        override fun onFailure(call: Call<ResponseData>, t: Throwable) {
+                            var mensaje: String = t.message.toString()
+                            val myToast = Toast.makeText(applicationContext,"Error2:"+mensaje,Toast.LENGTH_LONG)
+                            myToast.show()
+                        }
+                    })
+                }else{
+                    Toast.makeText(applicationContext,"Debe ingresar al menos 4 ciudades",Toast.LENGTH_LONG).show()
+                }
+
+
+
+
+
+            }
+        })
+
 
         binding.btnListNodes.setOnClickListener {
             intent = Intent(applicationContext, MainList::class.java)
@@ -136,9 +201,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnReset.setOnClickListener {
             Global.bezierNodes.clear()
+            Global.bezierOrderNodes.clear()
             Global.bezierCurve.clear()
             Global.numNodes = 0
-            binding.txt.text = ""
+            binding.txtResult.text = ""
             mCanvas.drawBitmap(originalBitmap, 0f, 0f, null)
         }
 

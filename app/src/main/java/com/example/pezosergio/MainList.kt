@@ -27,6 +27,7 @@ class MainList: AppCompatActivity() {
         binding.lvNodes.adapter = adapter
         binding.lvNodes.setOnItemLongClickListener{ parent, view, position, id ->
             Global.bezierNodes.removeAt(position)
+            Global.bezierOrderNodes.removeAt(position)
             Toast.makeText(applicationContext, "Node removed", Toast.LENGTH_LONG).show()
             intent = Intent(applicationContext, MainList::class.java)
             startActivity(intent)

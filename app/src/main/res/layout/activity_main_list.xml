@@ -21,13 +21,14 @@
 
     <ListView
         android:id="@+id/lvNodes"
-        android:layout_width="396dp"
-        android:layout_height="537dp"
+        android:layout_width="403dp"
+        android:layout_height="603dp"
         android:layout_marginStart="4dp"
         android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/myToolbar" />
+        app:layout_constraintTop_toBottomOf="@+id/myToolbar"
+        app:layout_constraintVertical_bias="1.0" />
 
     <TextView
         android:id="@+id/txtHelper"
